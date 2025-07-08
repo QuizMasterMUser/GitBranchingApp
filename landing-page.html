@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Branching App - Environment Selection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 50px;
+            font-size: 1.2em;
+        }
+        
+        .env-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .env-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .env-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .env-button:hover::before {
+            transform: translateY(0);
+        }
+        
+        .env-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .staging {
+            background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
+            color: white;
+        }
+        
+        .production {
+            background: linear-gradient(135deg, #28a745 0%, #20863d 100%);
+            color: white;
+        }
+        
+        .env-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .env-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .env-description {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 40px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .env-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .env-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Git Branching App</h1>
+        <p class="subtitle">Select Your Environment</p>
+        
+        <div class="env-buttons">
+            <a href="/staging/" class="env-button staging">
+                <div class="env-icon">🚧</div>
+                <div class="env-title">Staging</div>
+                <div class="env-description">Test new features and changes</div>
+            </a>
+            
+            <a href="/production/" class="env-button production">
+                <div class="env-icon">🚀</div>
+                <div class="env-title">Production</div>
+                <div class="env-description">Live production environment</div>
+            </a>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by CI/CD Pipeline</p>
+        </div>
+    </div>
+</body>
+</html> 

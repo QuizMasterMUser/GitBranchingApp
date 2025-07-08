@@ -8,7 +8,18 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
-    "build-web": "mkdir -p build && cp -r src/ build/ && cp package.json build/ && cp README.md build/ && echo 'Web build completed'"
+    "build-web": "mkdir -p build && cp -r src/ build/ && cp package.json build/ && cp README.md build/ && echo 'Web build completed'",
+    "start:dev": "REACT_APP_ENV=development react-native start",
+    "start:staging": "REACT_APP_ENV=staging react-native start",
+    "start:prod": "REACT_APP_ENV=production react-native start",
+    "android:dev": "REACT_APP_ENV=development react-native run-android",
+    "android:staging": "REACT_APP_ENV=staging react-native run-android",
+    "android:prod": "REACT_APP_ENV=production react-native run-android",
+    "ios:dev": "REACT_APP_ENV=development react-native run-ios",
+    "ios:staging": "REACT_APP_ENV=staging react-native run-ios",
+    "ios:prod": "REACT_APP_ENV=production react-native run-ios",
+    "build:staging": "REACT_APP_ENV=staging npm run build-web",
+    "build:prod": "REACT_APP_ENV=production npm run build-web"
   },
   "dependencies": {
     "react": "19.1.0",
