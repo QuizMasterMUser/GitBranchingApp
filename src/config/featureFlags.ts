@@ -1,6 +1,6 @@
 // Feature Flags Configuration
 export const FEATURE_FLAGS = {
-  PAYMENT_INTEGRATION: true,  // Can be toggled on/off
+  PAYMENT_INTEGRATION: false,  // Toggled OFF - feature will be hidden
   USER_PROFILE: true,
   DARK_MODE: false,
   BETA_FEATURES: false,
