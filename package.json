@@ -1,13 +1,14 @@
 {
   "name": "GitBranchingApp",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "build-web": "mkdir -p build && cp -r src/ build/ && cp package.json build/ && cp README.md build/ && echo 'Web build completed'"
   },
   "dependencies": {
     "react": "19.1.0",
