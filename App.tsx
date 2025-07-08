@@ -8,7 +8,7 @@
 import { NewAppScreen } from '@react-native/new-app-screen';
 import { StatusBar, StyleSheet, useColorScheme, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { isFeatureEnabled } from './src/config/featureFlags';
-import { config, getEnvironment, isProduction } from './src/config/environment';
+import { config, getEnvironment } from './src/config/environment';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
