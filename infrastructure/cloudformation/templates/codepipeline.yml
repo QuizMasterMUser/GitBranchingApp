@@ -1,0 +1,303 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CodePipeline for Git Branching App CI/CD'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name for the pipeline
+  
+  GitHubOwner:
+    Type: String
+    Description: GitHub repository owner/username
+  
+  GitHubRepo:
+    Type: String
+    Default: git-branching
+    Description: GitHub repository name
+  
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: GitHub branch to monitor
+  
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub personal access token
+  
+  ArtifactBucketName:
+    Type: String
+    Description: Name of the artifact bucket (from artifact-bucket stack)
+
+Resources:
+  # S3 Bucket for pipeline artifacts
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-pipeline-artifacts-${EnvironmentName}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldPipelineArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Purpose
+          Value: 'Pipeline Artifacts'
+
+  # CodeBuild Project for building the application
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${AWS::StackName}-build-${EnvironmentName}'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+        EnvironmentVariables:
+          - Name: ENVIRONMENT
+            Value: !Ref EnvironmentName
+          - Name: ARTIFACT_BUCKET
+            Value: !Ref ArtifactBucketName
+        PrivilegedMode: false
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 18
+              commands:
+                - echo "Installing dependencies..."
+                - npm ci
+            pre_build:
+              commands:
+                - echo "Setting up environment..."
+                - export REACT_APP_ENV=$ENVIRONMENT
+                - echo "Environment: $ENVIRONMENT"
+            build:
+              commands:
+                - echo "Building application..."
+                - mkdir -p build
+                - cp -r src/ build/ 2>/dev/null || echo "src directory not found"
+                - cp package.json build/ 2>/dev/null || echo "package.json not found"
+                - cp README.md build/ 2>/dev/null || echo "README.md not found"
+                - cp landing-page.html build/ 2>/dev/null || echo "landing-page.html not found"
+                - |
+                  cat > build/index.html << 'EOF'
+                  <!DOCTYPE html>
+                  <html lang="en">
+                  <head>
+                      <meta charset="UTF-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                      <title>Git Branching App - $ENVIRONMENT</title>
+                      <style>
+                          body { font-family: Arial, sans-serif; margin: 40px; }
+                          .container { max-width: 800px; margin: 0 auto; }
+                          .header { background: #007AFF; color: white; padding: 20px; border-radius: 8px; }
+                          .content { margin-top: 20px; }
+                          .feature { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+                      </style>
+                  </head>
+                  <body>
+                      <div class="container">
+                          <div class="header">
+                              <h1>Git Branching App - $ENVIRONMENT Environment</h1>
+                              <p>Built by AWS CodeBuild</p>
+                              <p>Environment: $ENVIRONMENT</p>
+                          </div>
+                          <div class="content">
+                              <h2>Features</h2>
+                              <div class="feature">
+                                  <h3>CI/CD Pipeline</h3>
+                                  <p>Automated deployment using AWS CodePipeline</p>
+                              </div>
+                              <div class="feature">
+                                  <h3>Environment Management</h3>
+                                  <p>Environment-specific configurations</p>
+                              </div>
+                          </div>
+                      </div>
+                  </body>
+                  </html>
+                  EOF
+                - echo "Build completed successfully"
+            post_build:
+              commands:
+                - echo "Uploading artifacts to S3..."
+                - aws s3 sync build/ s3://$ARTIFACT_BUCKET/builds/$CODEBUILD_BUILD_NUMBER/ --delete
+                - echo "Build artifacts uploaded to s3://$ARTIFACT_BUCKET/builds/$CODEBUILD_BUILD_NUMBER/"
+          artifacts:
+            files:
+              - '**/*'
+            name: build-artifacts
+      Cache:
+        Type: NO_CACHE
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # IAM Role for CodeBuild
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeBuildServiceRole
+      Policies:
+        - PolicyName: ArtifactBucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketName}/*'
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${AWS::StackName}-pipeline-${EnvironmentName}'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref CodeStarConnection
+                FullRepositoryId: !Sub '${GitHubOwner}/${GitHubRepo}'
+                BranchName: !Ref GitHubBranch
+              OutputArtifacts:
+                - Name: SourceCode
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref BuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: DeployToS3
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: '1'
+              Configuration:
+                BucketName: !Ref ArtifactBucketName
+                Extract: true
+                ObjectKey: !Sub '${EnvironmentName}/'
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+  # IAM Role for CodePipeline
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodePipelineServiceRole
+      Policies:
+        - PolicyName: ArtifactBucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucketName}/*'
+                  - !GetAtt PipelineArtifactBucket.Arn
+                  - !Sub '${PipelineArtifactBucket}/*'
+
+  # CodeStar Connection for GitHub
+  CodeStarConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: !Sub '${AWS::StackName}-github-connection-${EnvironmentName}'
+      ProviderType: GitHub
+
+Outputs:
+  PipelineName:
+    Description: Name of the CodePipeline
+    Value: !Ref Pipeline
+    Export:
+      Name: !Sub '${AWS::StackName}-PipelineName'
+
+  BuildProjectName:
+    Description: Name of the CodeBuild project
+    Value: !Ref BuildProject
+    Export:
+      Name: !Sub '${AWS::StackName}-BuildProjectName'
+
+  ArtifactBucketName:
+    Description: Name of the artifact bucket
+    Value: !Ref ArtifactBucketName
+    Export:
+      Name: !Sub '${AWS::StackName}-ArtifactBucketName'
+
+  CodeStarConnectionArn:
+    Description: ARN of the CodeStar connection
+    Value: !GetAtt CodeStarConnection.ConnectionArn
+    Export:
+      Name: !Sub '${AWS::StackName}-CodeStarConnectionArn' 
